@@ -17,7 +17,7 @@ buildah run "$CONTAINER" sh <<'EOT'
 	mkdir -p /home/codex/.local/bin
 	chown -R codex:codex /home/codex
 	sudo -u codex -i bash -c 'export CODEX_NON_INTERACTIVE=1; curl -fsSL https://chatgpt.com/codex/install.sh | sh'
-	ls -la /home/codex/.local/bin/
+	cp -L /home/codex/.local/bin/codex /usr/local/bin/codex
 	sudo -u codex -i bash -c 'curl -LsSf https://astral.sh/uv/install.sh | bash'
 EOT
 
