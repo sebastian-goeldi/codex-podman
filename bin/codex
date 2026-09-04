@@ -1,0 +1,91 @@
+#!/bin/bash
+
+# Default image
+IMAGE="ghcr.io/sebastian-goeldi/codex-podman/codex:latest"
+NAME="codex-$(uuidgen -r | cut -d- -f1)"
+INIT_SCRIPT=""
+APK_PACKAGES=""
+PODMAN_ARGS=""
+
+# Process arguments
+while [[ $# -gt 0 ]]; do
+	case "$1" in
+	--help)
+		cat <<-'EOT'
+			Usage: codex [OPTIONS]
+
+			Run OpenAI Codex CLI in a Podman container
+
+			Options:
+			  --local              Use local image 'codex:latest' instead of remote
+			  --init-script FILE   Execute initialization script as root
+			  --init-script-codex FILE  Execute initialization script as codex user
+			  --apk-packages LIST  Install additional packages (comma or space separated)
+			  --podman-arg ARG     Pass additional argument to podman
+			  --help               Display this help message
+		EOT
+		exit 0
+		;;
+	--self-update)
+		curl --proto '=https' --tlsv1.2 -sSf \
+			https://raw.githubusercontent.com/sebastian-goeldi/codex-podman/refs/heads/main/bin/codex |
+			tee $HOME/.local/bin/codex-podman >/dev/null
+		chmod a+x $HOME/.local/bin/codex-podman
+		echo "Updated"
+		exit 0
+		;;
+	--local)
+		IMAGE="codex:latest"
+		shift
+		;;
+	--init-script)
+		INIT_SCRIPT="$2"
+		shift 2
+		;;
+	--init-script-codex)
+		INIT_SCRIPT_CODEX="$2"
+		shift 2
+		;;
+	--apk-packages)
+		APK_PACKAGES="$2"
+		shift 2
+		;;
+	--podman-arg)
+		PODMAN_ARGS="$PODMAN_ARGS $2"
+		shift 2
+		;;
+	*)
+		break
+		;;
+	esac
+done
+
+podman run \
+	-v "${HOME}/.codex:/home/codex/.codex" \
+	-v "${PWD}:${PWD}" \
+	-w "$PWD" \
+	-e "OPENAI_API_KEY=${OPENAI_API_KEY}" \
+	--rm \
+	--name "$NAME" \
+	-ti \
+	--detach \
+	--user codex \
+	--userns=keep-id \
+	$PODMAN_ARGS \
+	"$IMAGE" "$@"
+
+if [ -n "$APK_PACKAGES" ]; then
+	APK_PACKAGES=$(echo $APK_PACKAGES | tr -s ', ' ' ')
+	podman exec --user root:root "$NAME" /bin/bash -c "apt-get update; apt-get install -y $APK_PACKAGES"
+fi
+if [ -n "$INIT_SCRIPT" ]; then
+	podman cp "$INIT_SCRIPT" "$NAME:/root/init.sh"
+	podman exec --user root:root "$NAME" bash /root/init.sh
+fi
+if [ -n "$INIT_SCRIPT_CODEX" ]; then
+	podman cp "$INIT_SCRIPT_CODEX" "$NAME:/home/codex/init.sh"
+	podman exec --user codex:codex "$NAME" bash /home/codex/init.sh
+fi
+
+
+podman container attach "$NAME"

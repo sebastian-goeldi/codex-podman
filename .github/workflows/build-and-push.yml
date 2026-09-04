@@ -1,0 +1,43 @@
+name: Build and Push Image
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+    - name: Check out repository
+      uses: actions/checkout@v4
+
+    - name: Login to GitHub Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ghcr.io
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Build Image with buildah script
+      env:
+        STORAGE_DRIVER: vfs
+      run: |
+        # Run the build script
+        VERSION=$(./devops/build-image.sh | tail -n2 | head -n1 | cut -d: -f2)
+
+        # Tag the image for GHCR
+        REPO_NAME=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+        buildah tag codex \
+          "ghcr.io/$REPO_NAME/codex:$VERSION" \
+          "ghcr.io/$REPO_NAME/codex:latest"
+
+        # Push to GitHub Container Registry
+        buildah push "ghcr.io/$REPO_NAME/codex:$VERSION"
+        buildah push "ghcr.io/$REPO_NAME/codex:latest"
