@@ -8,7 +8,7 @@ buildah run "$CONTAINER" sh <<'EOT'
 	apt-key adv --keyserver keyserver.ubuntu.com --recv-key C99B11DEB97541F0
   apt-add-repository https://cli.github.com/packages
 	apt-get update
-	apt-get install -y bash coreutils curl sudo adduser net-tools git build-essential graphviz graphviz-dev gcc g++ gh
+	apt-get install -y bash coreutils curl sudo adduser net-tools git build-essential graphviz graphviz-dev gcc g++ gh bubblewrap ripgrep jq
 	apt-get clean
 	find / -type f -name '*.md' -delete 2>/dev/null
 	adduser --disabled-password --gecos "" codex
@@ -17,8 +17,21 @@ buildah run "$CONTAINER" sh <<'EOT'
 	mkdir -p /home/codex/.local/bin
 	chown -R codex:codex /home/codex
 	sudo -u codex -i bash -c 'export CODEX_NON_INTERACTIVE=1; curl -fsSL https://chatgpt.com/codex/install.sh | sh'
+	rm -f /home/codex/.local/bin/codex
 	cp -rL /home/codex/.codex/packages/standalone/current/bin/* /home/codex/.local/bin/
 	sudo -u codex -i bash -c 'curl -LsSf https://astral.sh/uv/install.sh | bash'
+	sudo -u codex -i bash -c 'curl --proto =https --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y'
+	NODE_VERSION=22
+	curl -fsSL "https://nodejs.org/dist/latest-v${NODE_VERSION}.x/SHASUMS256.txt" -o /tmp/SHASUMS256.txt
+	NODE_FILE=$(grep 'linux-x64.tar.xz' /tmp/SHASUMS256.txt | awk '{print $2}')
+	curl -fsSL "https://nodejs.org/dist/latest-v${NODE_VERSION}.x/${NODE_FILE}" -o /tmp/node.tar.xz
+	tar -xJf /tmp/node.tar.xz -C /usr/local --strip-components=1
+	rm -f /tmp/node.tar.xz /tmp/SHASUMS256.txt
+	cat > /usr/local/bin/codex-entrypoint <<-'ENTRYPOINT'
+	#!/bin/sh
+	exec /home/codex/.local/bin/codex --dangerously-bypass-approvals-and-sandbox "$@"
+	ENTRYPOINT
+	chmod 0755 /usr/local/bin/codex-entrypoint
 EOT
 
 buildah config \
@@ -31,7 +44,7 @@ buildah config \
 	--env "OMP_NUM_THREADS=1" \
 	--env "MKL_NUM_THREADS=1" \
 	--cmd "[]" \
-	--entrypoint '[ "/home/codex/.local/bin/codex" ]' \
+	--entrypoint '[ "/usr/local/bin/codex-entrypoint" ]' \
 	--annotation "com.openai.codex.version=$CODEX_VERSION" \
 	--annotation "org.opencontainers.image.title=codex" \
 	--annotation "org.opencontainers.image.description=OpenAI Codex CLI on Debian ready for rootless podman" \
