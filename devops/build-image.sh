@@ -14,8 +14,10 @@ buildah run "$CONTAINER" sh <<'EOT'
 	adduser --disabled-password --gecos "" codex
 	mkdir -p /home/codex/.codex
 	echo 'export PATH="$HOME/.local/bin:$PATH"' >> /home/codex/.bashrc
+	mkdir -p /home/codex/.local/bin
 	chown -R codex:codex /home/codex
-	sudo -u codex -i bash -c 'curl -fsSL https://chatgpt.com/codex/install.sh | sh'
+	sudo -u codex -i bash -c 'export CODEX_NON_INTERACTIVE=1; curl -fsSL https://chatgpt.com/codex/install.sh | sh'
+	ls -la /home/codex/.local/bin/
 	sudo -u codex -i bash -c 'curl -LsSf https://astral.sh/uv/install.sh | bash'
 EOT
 
