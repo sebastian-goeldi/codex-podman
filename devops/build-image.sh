@@ -31,7 +31,7 @@ buildah config \
 	--env "OMP_NUM_THREADS=1" \
 	--env "MKL_NUM_THREADS=1" \
 	--cmd "[]" \
-	--entrypoint '[ "codex" ]' \
+	--entrypoint '[ "/home/codex/.local/bin/codex" ]' \
 	--annotation "com.openai.codex.version=$CODEX_VERSION" \
 	--annotation "org.opencontainers.image.title=codex" \
 	--annotation "org.opencontainers.image.description=OpenAI Codex CLI on Debian ready for rootless podman" \
