@@ -29,7 +29,7 @@ buildah run "$CONTAINER" sh <<'EOT'
 	rm -f /tmp/node.tar.xz /tmp/SHASUMS256.txt
 	cat > /usr/local/bin/codex-entrypoint <<-'ENTRYPOINT'
 	#!/bin/sh
-	exec /home/codex/.local/bin/codex --dangerously-bypass-approvals-and-sandbox "$@"
+	exec /home/codex/.local/bin/codex --sandbox danger-full-access "$@"
 	ENTRYPOINT
 	chmod 0755 /usr/local/bin/codex-entrypoint
 EOT

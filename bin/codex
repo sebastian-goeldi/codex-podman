@@ -72,7 +72,7 @@ podman run \
 	--user codex \
 	--userns=keep-id \
 	$PODMAN_ARGS \
-	"$IMAGE" --dangerously-bypass-approvals-and-sandbox "$@"
+	"$IMAGE" "$@"
 
 if [ -n "$APK_PACKAGES" ]; then
 	APK_PACKAGES=$(echo $APK_PACKAGES | tr -s ', ' ' ')
