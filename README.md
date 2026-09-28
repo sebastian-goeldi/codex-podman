@@ -30,8 +30,62 @@ This provides the following benefits:
 * Codex can only execute the files that exist in the image.
 
 This image runs in rootless podman, and even inside rootless podman it runs as
-a non-root user inside the container. Codex CLI is maximally locked down and
-can't even update itself!
+a non-root user inside the container.
+
+The complete Codex installation lives in an anonymous
+[image volume](https://docs.podman.io/en/latest/markdown/podman-run.1.html#image-volume-anonymous-tmpfs-ignore) at
+`/home/codex/.codex/packages/standalone`. Podman populates it from the image, so
+mounting your host's `~/.codex` does not hide the installation needed by
+`codex remote-control start`. Your settings and sessions still use the host
+directory. The daemon's `app-server-daemon` and `app-server-control` directories
+also use anonymous volumes, so PID files and sockets from the host or another
+container cannot interfere with startup. These volumes are removed with the
+container by `--rm`.
+
+Building locally
+----
+
+With Buildah and Podman installed, rebuild and check the package layout and
+local daemon startup:
+
+```sh
+sh devops/build-image.sh
+sh devops/check-image.sh
+./bin/codex --local
+```
+
+Remote mode
+----
+
+Start a session on a daemon with remote control enabled:
+
+```sh
+codex-podman --remote
+# Use your rebuilt local image:
+./bin/codex --local --remote
+```
+
+The wrapper runs any initialization scripts, starts `codex remote-control start`,
+and connects the terminal to that daemon with `codex --remote unix://`.
+Startup errors appear in the terminal. Exiting the terminal session stops the
+container and its daemon.
+
+Put wrapper options first; remaining arguments are forwarded to the terminal
+session, for example `./bin/codex --local --remote resume --last`.
+Use `--` to pass Codex options that overlap with wrapper options:
+
+```sh
+./bin/codex --local -- --remote ws://HOST:PORT
+```
+
+Remote mode requires a ChatGPT login and workspace access to remote control.
+It enables the CLI's experimental remote-control service.
+
+Run the wrapper checks without Podman using Node.js:
+
+```sh
+node --test devops/check-wrapper.cjs
+```
 
 Customizing the runtime
 ----

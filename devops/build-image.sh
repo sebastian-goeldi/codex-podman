@@ -8,17 +8,19 @@ buildah run "$CONTAINER" sh <<'EOT'
 	apt-key adv --keyserver keyserver.ubuntu.com --recv-key C99B11DEB97541F0
   apt-add-repository https://cli.github.com/packages
 	apt-get update
-	apt-get install -y bash coreutils curl sudo adduser net-tools git build-essential graphviz graphviz-dev gcc g++ gh bubblewrap ripgrep jq
+	apt-get install -y bash coreutils curl sudo adduser net-tools procps git build-essential graphviz graphviz-dev gcc g++ gh bubblewrap ripgrep jq
 	apt-get clean
 	find / -type f -name '*.md' -delete 2>/dev/null
 	adduser --disabled-password --gecos "" codex
 	mkdir -p /home/codex/.codex
+	# PID records and Unix sockets belong to one container's process namespace.
+	install -d -m 0700 /home/codex/.codex/app-server-daemon /home/codex/.codex/app-server-control
 	echo 'export PATH="$HOME/.local/bin:$PATH"' >> /home/codex/.bashrc
 	mkdir -p /home/codex/.local/bin
 	chown -R codex:codex /home/codex
 	sudo -u codex -i bash -c 'export CODEX_NON_INTERACTIVE=1; curl -fsSL https://chatgpt.com/codex/install.sh | sh'
-	rm -f /home/codex/.local/bin/codex
-	cp -rL /home/codex/.codex/packages/standalone/current/bin/* /home/codex/.local/bin/
+	# Keep the installer-managed package and its .local/bin/codex symlink.
+	# The daemon requires packages/standalone/current/codex, not a copied binary.
 	sudo -u codex -i bash -c 'curl -LsSf https://astral.sh/uv/install.sh | bash'
 	sudo -u codex -i bash -c 'curl --proto =https --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y'
 	NODE_VERSION=22
@@ -34,6 +36,9 @@ buildah run "$CONTAINER" sh <<'EOT'
 	chmod 0755 /usr/local/bin/codex-entrypoint
 EOT
 
+# Seed a nested volume from the image so the host ~/.codex mount cannot hide
+# the standalone package required by the CLI symlink and app-server daemon.
+# Keep daemon PID files and sockets in separate per-container volumes as well.
 buildah config \
 	--author "Sebastian Goeldi" \
 	--env "PATH=/home/codex/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" \
@@ -43,6 +48,9 @@ buildah config \
 	--env "OPENBLAS_NUM_THREADS=1" \
 	--env "OMP_NUM_THREADS=1" \
 	--env "MKL_NUM_THREADS=1" \
+	--volume /home/codex/.codex/packages/standalone \
+	--volume /home/codex/.codex/app-server-daemon \
+	--volume /home/codex/.codex/app-server-control \
 	--cmd "[]" \
 	--entrypoint '[ "/usr/local/bin/codex-entrypoint" ]' \
 	--annotation "com.openai.codex.version=$CODEX_VERSION" \
