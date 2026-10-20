@@ -3,6 +3,8 @@ codex-podman
 
 Codex for the security-conscious: run [OpenAI Codex CLI](https://github.com/openai/codex) in a rootless [podman](https://podman.io/) container.
 
+Forked from [EvanCarroll/coding-agent-podman](https://github.com/EvanCarroll/coding-agent-podman).
+
 Installation
 ----
 
