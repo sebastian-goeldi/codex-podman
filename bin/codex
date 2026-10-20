@@ -7,6 +7,7 @@ INIT_SCRIPT=""
 APK_PACKAGES=""
 PODMAN_ARGS=""
 REMOTE_MODE=false
+UPDATE_ARGS=()
 
 # Process arguments
 while [[ $# -gt 0 ]]; do
@@ -20,6 +21,7 @@ while [[ $# -gt 0 ]]; do
 			Options:
 			  --local              Use local image 'codex:latest' instead of remote
 			  --remote             Enable remote control and connect the terminal to its daemon
+			  --no-update          Skip updating Codex CLI in the container before launch
 			  --init-script FILE   Execute initialization script as root
 			  --init-script-codex FILE  Execute initialization script as codex user
 			  --apk-packages LIST  Install additional packages (comma or space separated)
@@ -43,6 +45,10 @@ while [[ $# -gt 0 ]]; do
 		;;
 	--remote)
 		REMOTE_MODE=true
+		shift
+		;;
+	--no-update)
+		UPDATE_ARGS=(-e CODEX_PODMAN_NO_UPDATE=1)
 		shift
 		;;
 	--)
@@ -85,6 +91,7 @@ podman run \
 	-v "${PWD}:${PWD}" \
 	-w "$PWD" \
 	-e "OPENAI_API_KEY=${OPENAI_API_KEY}" \
+	"${UPDATE_ARGS[@]}" \
 	--rm \
 	--name "$NAME" \
 	-ti \
@@ -117,6 +124,7 @@ fi
 
 if "$REMOTE_MODE"; then
 	podman exec -it --user codex "$NAME" /bin/sh -c '
+		codex-update
 		codex remote-control start || exit "$?"
 		exec codex --sandbox danger-full-access --remote unix:// "$@"
 	' codex-remote "$@"

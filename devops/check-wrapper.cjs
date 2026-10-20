@@ -46,7 +46,7 @@ if (args[0] === 'exec') {
   process.exit(Number(process.env.MOCK_INIT_EXIT || 0));
 }
 `, { mode: 0o755 });
-  for (const tool of ['podman', 'codex', 'uuidgen']) {
+  for (const tool of ['podman', 'codex', 'codex-update', 'uuidgen']) {
     fs.symlinkSync(mock, path.join(dir, tool));
   }
   try {
@@ -123,6 +123,22 @@ test('initialization failure skips remote startup and cleans up', () => {
   assert.equal(result.status, 19);
   assert.equal(codexCalls(result).length, 0);
   assert.equal(stopped(result).length, 1);
+});
+
+test('remote mode updates Codex before starting the daemon', () => {
+  const result = run(['--remote']);
+  assert.equal(result.status, 0, result.stderr);
+  const tools = result.calls.map(call => call.tool).filter(tool => tool !== 'podman');
+  assert.deepEqual(tools, ['codex-update', 'codex', 'codex']);
+  assert.ok(!result.calls[0].args.includes('CODEX_PODMAN_NO_UPDATE=1'));
+});
+
+test('no-update option reaches the container environment', () => {
+  const result = run(['--no-update', '--local']);
+  assert.equal(result.status, 0);
+  const env = result.calls[0].args.indexOf('CODEX_PODMAN_NO_UPDATE=1');
+  assert.equal(result.calls[0].args[env - 1], '-e');
+  assert.deepEqual(result.calls[0].args.slice(-1), ['codex:latest']);
 });
 
 test('ordinary mode keeps the image entrypoint and attaches', () => {
