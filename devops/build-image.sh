@@ -29,11 +29,23 @@ buildah run "$CONTAINER" sh <<'EOT'
 	curl -fsSL "https://nodejs.org/dist/latest-v${NODE_VERSION}.x/${NODE_FILE}" -o /tmp/node.tar.xz
 	tar -xJf /tmp/node.tar.xz -C /usr/local --strip-components=1
 	rm -f /tmp/node.tar.xz /tmp/SHASUMS256.txt
+	# Rerunning the installer updates the package volume to the latest release.
+	# It is a no-op when current; failures keep the version from the image.
+	cat > /usr/local/bin/codex-update <<-'UPDATE'
+	#!/bin/sh
+	[ -n "${CODEX_PODMAN_NO_UPDATE:-}" ] && exit 0
+	echo 'Updating Codex CLI...'
+	installer=$(curl -fsSL https://chatgpt.com/codex/install.sh) &&
+		printf '%s\n' "$installer" | CODEX_NON_INTERACTIVE=1 sh >/dev/null ||
+		echo 'Codex update failed; continuing with the installed version.' >&2
+	exit 0
+	UPDATE
 	cat > /usr/local/bin/codex-entrypoint <<-'ENTRYPOINT'
 	#!/bin/sh
+	codex-update
 	exec /home/codex/.local/bin/codex --sandbox danger-full-access "$@"
 	ENTRYPOINT
-	chmod 0755 /usr/local/bin/codex-entrypoint
+	chmod 0755 /usr/local/bin/codex-update /usr/local/bin/codex-entrypoint
 EOT
 
 # Seed a nested volume from the image so the host ~/.codex mount cannot hide

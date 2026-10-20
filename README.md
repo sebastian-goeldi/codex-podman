@@ -3,6 +3,8 @@ codex-podman
 
 Codex for the security-conscious: run [OpenAI Codex CLI](https://github.com/openai/codex) in a rootless [podman](https://podman.io/) container.
 
+Forked from [EvanCarroll/coding-agent-podman](https://github.com/EvanCarroll/coding-agent-podman).
+
 Installation
 ----
 
@@ -41,6 +43,12 @@ directory. The daemon's `app-server-daemon` and `app-server-control` directories
 also use anonymous volumes, so PID files and sockets from the host or another
 container cannot interfere with startup. These volumes are removed with the
 container by `--rm`.
+
+Before Codex starts, the container reruns the official installer to update
+the CLI to the latest release. The update goes into the container's anonymous
+package volume, so it only lasts for that container's lifetime. If the update
+fails, for example when offline, Codex starts with the version from the image.
+Pass `--no-update` to skip it.
 
 Building locally
 ----
