@@ -50,6 +50,10 @@ EOT
 
 # Seed a nested volume from the image so the host ~/.codex mount cannot hide
 # the standalone package required by the CLI symlink and app-server daemon.
+# The volume covers all of `packages`, not just `standalone`, because the daemon
+# creates `packages/app-server-daemon` itself. Leaving that to the host mount
+# puts it under a `packages` mountpoint the runtime creates as root, which the
+# codex user cannot write to.
 # Keep daemon PID files and sockets in separate per-container volumes as well.
 buildah config \
 	--author "Sebastian Goeldi" \
@@ -60,7 +64,7 @@ buildah config \
 	--env "OPENBLAS_NUM_THREADS=1" \
 	--env "OMP_NUM_THREADS=1" \
 	--env "MKL_NUM_THREADS=1" \
-	--volume /home/codex/.codex/packages/standalone \
+	--volume /home/codex/.codex/packages \
 	--volume /home/codex/.codex/app-server-daemon \
 	--volume /home/codex/.codex/app-server-control \
 	--cmd "[]" \
