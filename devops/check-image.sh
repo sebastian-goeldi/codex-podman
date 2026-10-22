@@ -7,7 +7,8 @@ image="${1:-codex:latest}"
 task_home=$(mktemp -d)
 trap 'rm -rf "$task_home"' EXIT
 mkdir -p "$task_home/packages/standalone"
-touch "$task_home/host-settings" "$task_home/packages/standalone/host-package"
+touch "$task_home/host-settings" "$task_home/packages/host-package-root" \
+	"$task_home/packages/standalone/host-package"
 ln -s host-package "$task_home/packages/standalone/current"
 mkdir -p "$task_home/app-server-daemon" "$task_home/app-server-control"
 printf '%s\n' '{"pid":1,"processStartTime":"stale host process"}' > "$task_home/app-server-daemon/app-server.pid"
@@ -21,7 +22,10 @@ podman run --rm \
 	"$image" -eu -c '
 	package=/home/codex/.codex/packages/standalone/current
 	test -f /home/codex/.codex/host-settings
+	test ! -e /home/codex/.codex/packages/host-package-root
 	test ! -e /home/codex/.codex/packages/standalone/host-package
+	# The daemon installs itself into packages/app-server-daemon on first start.
+	test -w /home/codex/.codex/packages
 	test ! -e /home/codex/.codex/app-server-daemon/app-server.pid
 	test ! -e /home/codex/.codex/app-server-control/app-server-control.sock
 	test -L /home/codex/.local/bin/codex
@@ -38,8 +42,11 @@ podman run --rm \
 	codex app-server daemon start
 	codex app-server daemon version
 	test -S /home/codex/.codex/app-server-control/app-server-control.sock
+	test -d /home/codex/.codex/packages/app-server-daemon
 	'
 
+test -f "$task_home/packages/host-package-root"
+test ! -e "$task_home/packages/app-server-daemon"
 test -f "$task_home/packages/standalone/host-package"
 test "$(readlink "$task_home/packages/standalone/current")" = host-package
 test "$(cat "$task_home/app-server-daemon/app-server.pid")" = '{"pid":1,"processStartTime":"stale host process"}'

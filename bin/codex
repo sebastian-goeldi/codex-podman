@@ -77,6 +77,12 @@ while [[ $# -gt 0 ]]; do
 	esac
 done
 
+# The anonymous volume on `packages` covers every daemon-owned package directory,
+# including `app-server-daemon`, which the app-server daemon creates on startup.
+# Without it that directory would land in the host `.codex` mount, inside a
+# `packages` mountpoint the runtime creates as root, and the daemon would fail
+# with "Permission denied (os error 13)".
+
 # Keep the container alive while initialization and remote startup run. Using
 # exec below exposes startup errors directly instead of racing container attach.
 CONTAINER_ARGS=("$@")
@@ -88,6 +94,7 @@ fi
 
 podman run \
 	-v "${HOME}/.codex:/home/codex/.codex" \
+	-v /home/codex/.codex/packages \
 	-v "${PWD}:${PWD}" \
 	-w "$PWD" \
 	-e "OPENAI_API_KEY=${OPENAI_API_KEY}" \

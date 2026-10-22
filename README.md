@@ -36,13 +36,17 @@ a non-root user inside the container.
 
 The complete Codex installation lives in an anonymous
 [image volume](https://docs.podman.io/en/latest/markdown/podman-run.1.html#image-volume-anonymous-tmpfs-ignore) at
-`/home/codex/.codex/packages/standalone`. Podman populates it from the image, so
+`/home/codex/.codex/packages`. Podman populates it from the image, so
 mounting your host's `~/.codex` does not hide the installation needed by
 `codex remote-control start`. Your settings and sessions still use the host
-directory. The daemon's `app-server-daemon` and `app-server-control` directories
-also use anonymous volumes, so PID files and sockets from the host or another
-container cannot interfere with startup. These volumes are removed with the
-container by `--rm`.
+directory. The volume covers the whole `packages` directory because the
+app-server daemon installs itself into `packages/app-server-daemon` on startup;
+leaving that to the host mount makes the daemon fail with
+`Permission denied (os error 13)`, since Podman creates the intervening
+`packages` mountpoint as root. The daemon's `app-server-daemon` and
+`app-server-control` directories also use anonymous volumes, so PID files and
+sockets from the host or another container cannot interfere with startup. These
+volumes are removed with the container by `--rm`.
 
 Before Codex starts, the container reruns the official installer to update
 the CLI to the latest release. The update goes into the container's anonymous
